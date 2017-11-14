@@ -12,7 +12,6 @@ username / password is not working now.
 import bs4
 import requests
 import requests.packages.urllib3
-import cookielib
 
 requests.packages.urllib3.disable_warnings()
 
@@ -296,6 +295,11 @@ class JDWrapper(object):
             ## save cookies
             for k, v in resp.cookies.items():
                 self.cookies[k] = v
+
+            ## save cookies in file
+            cookiesData = resp.cookies.items()
+            with open('cookies.json', 'w') as file:
+                json.dump(cookiesData, file)
 
             # step 2: get QR image
             resp = self.sess.get(
@@ -711,7 +715,8 @@ if __name__ == '__main__':
     # parser.add_argument('-p', '--password',
     #					help='Jing Dong login user password', default='')
     parser.add_argument('-a', '--area',
-                        help='Area string, like: 1_72_2799_0 for Beijing', default='13_1072_1079_38629')
+                        help='Area string, like: 1_72_2799_0 for Beijing',
+                        default='13_1072_1079_38629')
     parser.add_argument('-g', '--good',
                         help='Jing Dong good ID', default='')
     parser.add_argument('-c', '--count', type=int,
