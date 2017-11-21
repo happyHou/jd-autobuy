@@ -10,7 +10,7 @@ username / password is not working now.
 """
 
 import bs4
-import requests
+import requests,pickle
 import requests.packages.urllib3
 
 requests.packages.urllib3.disable_warnings()
@@ -85,6 +85,7 @@ class JDWrapper(object):
         self.login = 'https://passport.jd.com/uc/loginService'
         self.imag = 'https://authcode.jd.com/verify/image'
         self.auth = 'https://passport.jd.com/uc/showAuthCode'
+        self.check ='https://ai.jd.com/index_new.php'
 
         self.sess = requests.Session()
 
@@ -270,6 +271,34 @@ class JDWrapper(object):
 
         return False
 
+    def check_login(self):
+        # https://ai.jd.com/index_new.php?app=Newuser&action=isNewuser&callback=jsonpCallbackIsNewuser&_=1511272224658
+        print '++++++++++++++check_login+++++++++++++'
+
+        if not os.path.isfile('cookie.json'):
+            return False
+
+        with open('cookie.json') as f:
+            cookies = requests.utils.cookiejar_from_dict(pickle.load(f))
+            self.sess.cookies.update(cookies)
+
+        resp = self.sess.get(
+            self.check,
+            params={
+                'app': 'Newuser',
+                'action': 'isNewuser',
+                'callback':'jsonpCallbackIsNewuser',
+                '_': (long)(time.time() * 1000)
+            }
+        )
+
+        n1 = resp.text.find('(')
+        n2 = resp.text.find(')')
+        rs = json.loads(resp.text[n1 + 1:n2])
+        return rs['islogin']
+
+
+
     def login_by_QR(self):
         # jd login by QR code
         try:
@@ -295,11 +324,6 @@ class JDWrapper(object):
             ## save cookies
             for k, v in resp.cookies.items():
                 self.cookies[k] = v
-
-            ## save cookies in file
-            cookiesData = resp.cookies.items()
-            with open('cookies.json', 'w') as file:
-                json.dump(cookiesData, file)
 
             # step 2: get QR image
             resp = self.sess.get(
@@ -388,6 +412,10 @@ class JDWrapper(object):
             self.headers['P3P'] = resp.headers.get('P3P')
             for k, v in resp.cookies.items():
                 self.cookies[k] = v
+
+            ## save header and cookie
+            with open('cookie.json', 'w') as f:
+                pickle.dump(requests.utils.dict_from_cookiejar(self.sess.cookies), f)
 
             print u'登陆成功'
             return True
@@ -697,13 +725,15 @@ class JDWrapper(object):
 
 
 def main(options):
-    #
+
     jd = JDWrapper()
-    if not jd.login_by_QR():
-        return
+    while not jd.check_login():
+        jd.login_by_QR()
+
+
 
     while not jd.buy(options) and options.flush:
-        time.sleep(options.wait / 1000.0)
+       time.sleep(options.wait / 1000.0)
 
 
 if __name__ == '__main__':
